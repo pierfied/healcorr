@@ -5,7 +5,7 @@ import healpy as hp
 import glob
 
 
-def compute_corr(maps, mask, bins):
+def compute_corr(maps, mask, bins, premasked=False):
     npix = len(mask)
     nside = hp.npix2nside(npix)
 
@@ -14,7 +14,10 @@ def compute_corr(maps, mask, bins):
     pix_inds = np.arange(npix)[mask]
     theta, phi = hp.pix2ang(nside, pix_inds)
 
-    masked_maps = maps[:, mask]
+    if not premasked:
+        masked_maps = maps[:, mask]
+    else:
+        masked_maps = maps
 
     nmaps = masked_maps.shape[0]
     mask_npix = masked_maps.shape[1]
