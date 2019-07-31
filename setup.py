@@ -5,8 +5,8 @@ module = Extension('healcorr',
                    define_macros=[('MAJOR_VERSION', '1'),
                                   ('MINOR_VERSION', '0')],
                    sources=['src/healcorr.c'],
-                   extra_compile_args=['-fopenmp'],
-                   extra_link_args=['-fopenmp'])
+                   extra_compile_args=['-fopenmp -O3'],
+                   extra_link_args=['-fopenmp -O3'])
 
 setup(name='healcorr',
       version='1.0',
