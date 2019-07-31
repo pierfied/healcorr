@@ -20,7 +20,7 @@ void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep) {
 }
 
 double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins) {
-    double map_means[nmaps];
+    double *map_means = malloc(sizeof(double) * nmaps);
 #pragma omp parallel for
     for (long i = 0; i < nmaps; ++i) {
         map_means[i] = 0;
@@ -32,9 +32,9 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
         map_means[i] /= npix;
     }
 
-    double x[npix];
-    double y[npix];
-    double z[npix];
+    double *x = malloc(sizeof(double) * npix);
+    double *y = malloc(sizeof(double) * npix);
+    double *z = malloc(sizeof(double) * npix);
 #pragma omp parallel for
     for (long i = 0; i < npix; ++i) {
         x[i] = cos(phi[i]) * sin(theta[i]);
@@ -43,18 +43,18 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     }
 
     double *xis = malloc(sizeof(double) * nbins * nmaps);
-    double counts[nbins * nmaps];
+    double *counts = malloc(sizeof(double) * nbins);
 #pragma omp parallel for
     for (long i = 0; i < nbins * nmaps; ++i) {
         xis[i] = 0;
         counts[i] = 0;
     }
 
+    double *ang_sep = malloc(sizeof(double) * npix);
+    long *bin_nums = malloc(sizeof(long) * npix);
     for (long i = 0; i < npix; ++i) {
-        double ang_sep[i+1];
         calc_ang_sep(i, x, y, z, ang_sep);
 
-        long bin_nums[i+1];
 #pragma omp parallel for
         for (long j = 0; j <= i; ++j) {
             if (ang_sep[j] < bins[0] || ang_sep[j] > bins[nbins]) {
@@ -69,26 +69,48 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
             }
         }
 
-#pragma omp parallel for
-        for (long j = 0; j < nmaps; ++j) {
-            double mi = maps[j * npix + i];
+        for (long j = 0; j <= i; ++j) {
+            if (bin_nums[j] >= 0){
+                counts[j]++;
+            }
+        }
 
-            for (long k = 0; k <= i; ++k) {
-                if (bin_nums[k] >= 0) {
-                    xis[j * nbins + bin_nums[k]] += mi * maps[j * npix + k];
-                    counts[j * nbins + bin_nums[k]]++;
+        for (long j = 0; j <= i; ++j) {
+            if (bin_nums[j] >= 0){
+#pragma omp parallel for
+                for (long k = 0; k < nmaps; ++k) {
+                    xis[k * nbins + bin_nums[j]] += maps[k * npix + i] * maps[k * npix + j];
                 }
             }
         }
+
+//#pragma omp parallel for
+//        for (long j = 0; j < nmaps; ++j) {
+//            double mi = maps[j * npix + i];
+//
+//            for (long k = 0; k <= i; ++k) {
+//                if (bin_nums[k] >= 0) {
+//                    xis[j * nbins + bin_nums[k]] += mi * maps[j * npix + k];
+//                }
+//            }
+//        }
     }
 
 #pragma omp parallel for
     for (long i = 0; i < nmaps; ++i) {
         for (long j = 0; j < nbins; ++j) {
             long ind = i * nbins + j;
-            xis[ind] = (xis[ind] - (map_means[i] * map_means[i] * counts[ind])) / (counts[ind] - 1);
+            xis[ind] = (xis[ind] - (map_means[i] * map_means[i] * counts[j])) / (counts[j] - 1);
         }
     }
+
+    free(map_means);
+    free(x);
+    free(y);
+    free(z);
+    free(counts);
+    free(ang_sep);
+    free(bin_nums);
 
     return xis;
 }
