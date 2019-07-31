@@ -21,6 +21,8 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     double map_means[nmaps];
 #pragma omp parallel for
     for (long i = 0; i < nmaps; ++i) {
+        map_means[i] = 0;
+
         for (long j = 0; j < npix; ++j) {
             map_means[i] += maps[i * npix + j];
         }
@@ -56,7 +58,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
                 bin_nums[j] = -1;
             } else {
                 for (long k = 0; k < nbins; ++k) {
-                    if (ang_sep[j] < bins[k + 1]) {
+                    if (ang_sep[j] <= bins[k + 1]) {
                         bin_nums[j] = k;
                         break;
                     }
