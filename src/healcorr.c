@@ -47,6 +47,9 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
 #pragma omp parallel for
     for (long i = 0; i < nbins * nmaps; ++i) {
         xis[i] = 0;
+    }
+#pragma omp parallel for
+    for (int i = 0; i < nbins; ++i) {
         counts[i] = 0;
     }
 
@@ -71,7 +74,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
 
         for (long j = 0; j <= i; ++j) {
             if (bin_nums[j] >= 0){
-                counts[j]++;
+                counts[bin_nums[j]]++;
             }
         }
 
