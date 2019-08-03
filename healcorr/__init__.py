@@ -5,7 +5,7 @@ import healpy as hp
 import glob
 
 
-def compute_corr(maps, mask, bins, premasked=False):
+def compute_corr(maps, mask, bins, premasked=False, verbose=False):
     npix = len(mask)
     nside = hp.npix2nside(npix)
 
@@ -28,7 +28,7 @@ def compute_corr(maps, mask, bins, premasked=False):
     dptr = ctypes.POINTER(ctypes.c_double)
 
     healcorr_run = healcorr_lib.healcorr
-    healcorr_run.argtypes = [ctypes.c_long, dptr, dptr, ctypes.c_long, dptr, ctypes.c_long, dptr]
+    healcorr_run.argtypes = [ctypes.c_long, dptr, dptr, ctypes.c_long, dptr, ctypes.c_long, dptr, ctypes.c_long]
     healcorr_run.restype = dptr
 
     masked_maps = np.ascontiguousarray(masked_maps)
@@ -41,7 +41,12 @@ def compute_corr(maps, mask, bins, premasked=False):
     phi_ptr = phi.ctypes.data_as(dptr)
     bins_ptr = bins.ctypes.data_as(dptr)
 
-    xis_ptr = healcorr_run(mask_npix, theta_ptr, phi_ptr, nmaps, masked_maps_ptr, nbins, bins_ptr)
+    if verbose:
+        verbose_flag = 1
+    else:
+        verbose_flag = 0
+
+    xis_ptr = healcorr_run(mask_npix, theta_ptr, phi_ptr, nmaps, masked_maps_ptr, nbins, bins_ptr, verbose_flag)
     xis = np.ctypeslib.as_array(xis_ptr, shape=(nmaps, nbins))
 
     return xis

@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep) {
     double xi = x[ind];
@@ -19,7 +20,8 @@ void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep) {
     ang_sep[ind] = 0;
 }
 
-double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins) {
+double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins,
+                 long verbose) {
     double *map_means = malloc(sizeof(double) * nmaps);
 #pragma omp parallel for
     for (long i = 0; i < nmaps; ++i) {
@@ -49,8 +51,15 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
         xis[i] = 0;
     }
 #pragma omp parallel for
-    for (int i = 0; i < nbins; ++i) {
+    for (long i = 0; i < nbins; ++i) {
         counts[i] = 0;
+    }
+
+    time_t prev_time = 0;
+    time_t cur_time = 0;
+
+    if(verbose) {
+        printf("\n");
     }
 
     double *ang_sep = malloc(sizeof(double) * npix);
@@ -73,13 +82,13 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
         }
 
         for (long j = 0; j <= i; ++j) {
-            if (bin_nums[j] >= 0){
+            if (bin_nums[j] >= 0) {
                 counts[bin_nums[j]]++;
             }
         }
 
         for (long j = 0; j <= i; ++j) {
-            if (bin_nums[j] >= 0){
+            if (bin_nums[j] >= 0) {
 #pragma omp parallel for
                 for (long k = 0; k < nmaps; ++k) {
                     xis[k * nbins + bin_nums[j]] += maps[k * npix + i] * maps[k * npix + j];
@@ -87,16 +96,11 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
             }
         }
 
-//#pragma omp parallel for
-//        for (long j = 0; j < nmaps; ++j) {
-//            double mi = maps[j * npix + i];
-//
-//            for (long k = 0; k <= i; ++k) {
-//                if (bin_nums[k] >= 0) {
-//                    xis[j * nbins + bin_nums[k]] += mi * maps[j * npix + k];
-//                }
-//            }
-//        }
+        cur_time = time(NULL);
+        if(verbose && (cur_time > prev_time || i == npix-1)){
+            printf("\033[A\33[2K\r%ld/%ld: %ld%% Complete\n", i+1, npix, 100 * (i+1) / npix);
+            prev_time = cur_time;
+        }
     }
 
 #pragma omp parallel for
