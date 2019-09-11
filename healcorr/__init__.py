@@ -49,7 +49,7 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
 
     if cross_correlate:
         crosscorr_flag = 1
-        nxis = (nmaps * (nmaps + 1)) / 2
+        nxis = int((nmaps * (nmaps + 1)) / 2)
     else:
         crosscorr_flag = 0
         nxis = nmaps
@@ -60,7 +60,7 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
 
     if cross_correlate:
         xi_mat = np.zeros([nmaps, nmaps, nbins])
-        xi_mask = np.tri(nmaps, nmaps, dtype=True)
+        xi_mask = np.tri(nmaps, nmaps, dtype=bool)
 
         for i in range(nbins):
             xi_mat[:,:,i][xi_mask] =  xis[:,i]
