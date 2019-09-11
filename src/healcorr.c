@@ -21,7 +21,7 @@ void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep) {
 }
 
 double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins,
-                 long verbose) {
+                 long verbose, long cross_correlate) {
     double *map_means = malloc(sizeof(double) * nmaps);
 #pragma omp parallel for
     for (long i = 0; i < nmaps; ++i) {
@@ -44,7 +44,34 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
         z[i] = cos(theta[i]);
     }
 
-    double *xis = malloc(sizeof(double) * nbins * nmaps);
+    long nxis;
+    if (cross_correlate) {
+        nxis = (nmaps * (nmaps + 1)) / 2;
+    }else{
+        nxis = nmaps;
+    }
+
+    long *map1 = malloc(sizeof(long) * nxis);
+    long *map2 = malloc(sizeof(long) * nxis);
+
+    long xi_num = 0;
+    if(cross_correlate){
+        for (int i = 0; i < nmaps; ++i) {
+            for (int j = 0; j <= i; ++j) {
+                map1[xi_num] = i;
+                map2[xi_num] = j;
+
+                xi_num++;
+            }
+        }
+    }else{
+        for (int i = 0; i < nmaps; ++i) {
+            map1[i] = i;
+            map2[i] = i;
+        }
+    }
+
+    double *xis = malloc(sizeof(double) * nbins * nxis);
     double *counts = malloc(sizeof(double) * nbins);
 #pragma omp parallel for
     for (long i = 0; i < nbins * nmaps; ++i) {
@@ -58,7 +85,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     time_t prev_time = 0;
     time_t cur_time = 0;
 
-    if(verbose) {
+    if (verbose) {
         printf("\n");
     }
 
@@ -90,24 +117,24 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
         for (long j = 0; j <= i; ++j) {
             if (bin_nums[j] >= 0) {
 #pragma omp parallel for
-                for (long k = 0; k < nmaps; ++k) {
-                    xis[k * nbins + bin_nums[j]] += maps[k * npix + i] * maps[k * npix + j];
+                for (long k = 0; k < nxis; ++k) {
+                    xis[k * nbins + bin_nums[j]] += maps[map1[k] * npix + i] * maps[map2[k] * npix + j];
                 }
             }
         }
 
         cur_time = time(NULL);
-        if(verbose && (cur_time > prev_time || i == npix-1)){
-            printf("\033[A\33[2K\r%ld/%ld: %ld%% Complete\n", i+1, npix, 100 * (i+1) / npix);
+        if (verbose && (cur_time > prev_time || i == npix - 1)) {
+            printf("\033[A\33[2K\r%ld/%ld: %ld%% Complete\n", i + 1, npix, 100 * (i + 1) / npix);
             prev_time = cur_time;
         }
     }
 
 #pragma omp parallel for
-    for (long i = 0; i < nmaps; ++i) {
+    for (long i = 0; i < nxis; ++i) {
         for (long j = 0; j < nbins; ++j) {
             long ind = i * nbins + j;
-            xis[ind] = (xis[ind] - (map_means[i] * map_means[i] * counts[j])) / (counts[j] - 1);
+            xis[ind] = (xis[ind] - (map_means[map1[i]] * map_means[map2[i]] * counts[j])) / (counts[j] - 1);
         }
     }
 
@@ -118,6 +145,8 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     free(counts);
     free(ang_sep);
     free(bin_nums);
+    free(map1);
+    free(map2);
 
     return xis;
 }
