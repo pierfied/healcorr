@@ -58,4 +58,14 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
                            crosscorr_flag)
     xis = np.ctypeslib.as_array(xis_ptr, shape=(nxis, nbins))
 
+    if cross_correlate:
+        xi_mat = np.zeros([nmaps, nmaps, nbins])
+        xi_mask = np.tri(nmaps, nmaps, dtype=True)
+
+        for i in range(nbins):
+            xi_mat[:,:,i][xi_mask] =  xis[:,i]
+            xi_mat[:,:,i][xi_mask.T] =  xis[:,i]
+
+        xis = xi_mat
+
     return xis
