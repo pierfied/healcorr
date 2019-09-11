@@ -74,7 +74,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     double *xis = malloc(sizeof(double) * nbins * nxis);
     double *counts = malloc(sizeof(double) * nbins);
 #pragma omp parallel for
-    for (long i = 0; i < nbins * nmaps; ++i) {
+    for (long i = 0; i < nbins * nxis; ++i) {
         xis[i] = 0;
     }
 #pragma omp parallel for
