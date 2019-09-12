@@ -134,7 +134,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     for (long i = 0; i < nxis; ++i) {
         for (long j = 0; j < nbins; ++j) {
             long ind = i * nbins + j;
-            xis[ind] = (xis[ind] - (map_means[map1[i]] * map_means[map2[i]] * counts[j])) / (counts[j] - 1);
+            xis[ind] = xis[ind]/counts[j] - map_means[map1[i]] * map_means[map2[i]];
         }
     }
 
