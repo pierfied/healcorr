@@ -64,7 +64,7 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
 
         for i in range(nbins):
             xi_mat[:,:,i][xi_mask] =  xis[:,i]
-            xi_mat[:,:,i][xi_mask.T] =  xis[:,i]
+            xi_mat[:,:,i][xi_mask.T] =  xi_mat[:,:,i].T[xi_mask.T]
 
         xis = xi_mat
 
