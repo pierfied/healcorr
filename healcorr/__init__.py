@@ -5,7 +5,7 @@ import healpy as hp
 import glob
 
 
-def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbose=False):
+def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, bin_avg_theta=False, verbose=False):
     npix = len(mask)
     nside = hp.npix2nside(npix)
 
@@ -29,7 +29,7 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
 
     healcorr_run = healcorr_lib.healcorr
     healcorr_run.argtypes = [ctypes.c_long, dptr, dptr, ctypes.c_long, dptr, ctypes.c_long, dptr, ctypes.c_long,
-                             ctypes.c_long]
+                             ctypes.c_long, ctypes.c_long, dptr]
     healcorr_run.restype = dptr
 
     masked_maps = np.ascontiguousarray(masked_maps)
@@ -54,8 +54,16 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
         crosscorr_flag = 0
         nxis = nmaps
 
+    if bin_avg_theta:
+        avg_theta_flag = 1
+        avg_theta = np.ascontiguousarray(np.zeros(nbins))
+        avg_theta_ptr = avg_theta.ctypes.data_as(dptr)
+    else:
+        avg_theta_flag = 0
+        avg_theta_ptr = None
+
     xis_ptr = healcorr_run(mask_npix, theta_ptr, phi_ptr, nmaps, masked_maps_ptr, nbins, bins_ptr, verbose_flag,
-                           crosscorr_flag)
+                           crosscorr_flag, avg_theta_flag, avg_theta_ptr)
     xis = np.ctypeslib.as_array(xis_ptr, shape=(nxis, nbins))
 
     if cross_correlate:
@@ -63,9 +71,12 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
         xi_mask = np.tri(nmaps, nmaps, dtype=bool)
 
         for i in range(nbins):
-            xi_mat[:,:,i][xi_mask] =  xis[:,i]
-            xi_mat[:,:,i][xi_mask.T] =  xi_mat[:,:,i].T[xi_mask.T]
+            xi_mat[:, :, i][xi_mask] = xis[:, i]
+            xi_mat[:, :, i][xi_mask.T] = xi_mat[:, :, i].T[xi_mask.T]
 
         xis = xi_mat
+
+    if bin_avg_theta:
+        return xis, avg_theta
 
     return xis

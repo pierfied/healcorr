@@ -21,7 +21,7 @@ void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep) {
 }
 
 double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins,
-                 long verbose, long cross_correlate) {
+                 long verbose, long cross_correlate, long bin_avg_theta, double *avg_theta) {
     double *map_means = malloc(sizeof(double) * nmaps);
 #pragma omp parallel for
     for (long i = 0; i < nmaps; ++i) {
@@ -47,7 +47,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     long nxis;
     if (cross_correlate) {
         nxis = (nmaps * (nmaps + 1)) / 2;
-    }else{
+    } else {
         nxis = nmaps;
     }
 
@@ -55,7 +55,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     long *map2 = malloc(sizeof(long) * nxis);
 
     long xi_num = 0;
-    if(cross_correlate){
+    if (cross_correlate) {
         for (int i = 0; i < nmaps; ++i) {
             for (int j = 0; j <= i; ++j) {
                 map1[xi_num] = i;
@@ -64,7 +64,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
                 xi_num++;
             }
         }
-    }else{
+    } else {
         for (int i = 0; i < nmaps; ++i) {
             map1[i] = i;
             map2[i] = i;
@@ -82,6 +82,13 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
         counts[i] = 0;
     }
 
+    if (bin_avg_theta) {
+#pragma omp parallel for
+        for (int i = 0; i < nbins; ++i) {
+            avg_theta[i] = 0;
+        }
+    }
+
     time_t prev_time = 0;
     time_t cur_time = 0;
 
@@ -94,7 +101,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     for (long i = 0; i < npix; ++i) {
         calc_ang_sep(i, x, y, z, ang_sep);
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
         for (long j = 0; j <= i; ++j) {
             if (ang_sep[j] < bins[0] || ang_sep[j] > bins[nbins]) {
                 bin_nums[j] = -1;
@@ -111,6 +118,14 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
         for (long j = 0; j <= i; ++j) {
             if (bin_nums[j] >= 0) {
                 counts[bin_nums[j]]++;
+            }
+        }
+
+        if (bin_avg_theta) {
+            for (int j = 0; j <= i; ++j) {
+                if (bin_nums[j] >= 0) {
+                    avg_theta[bin_nums[j]] += ang_sep[j];
+                }
             }
         }
 
@@ -134,7 +149,13 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     for (long i = 0; i < nxis; ++i) {
         for (long j = 0; j < nbins; ++j) {
             long ind = i * nbins + j;
-            xis[ind] = xis[ind]/counts[j] - map_means[map1[i]] * map_means[map2[i]];
+            xis[ind] = xis[ind] / counts[j] - map_means[map1[i]] * map_means[map2[i]];
+        }
+    }
+
+    if (bin_avg_theta) {
+        for (int i = 0; i < nbins; ++i) {
+            avg_theta[i] /= counts[i];
         }
     }
 
