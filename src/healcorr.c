@@ -21,7 +21,7 @@ void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep) {
 }
 
 double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins,
-                 long verbose, long cross_correlate) {
+                 long verbose, long cross_correlate, double *counts) {
     double *map_means = malloc(sizeof(double) * nmaps);
 #pragma omp parallel for
     for (long i = 0; i < nmaps; ++i) {
@@ -72,7 +72,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     }
 
     double *xis = malloc(sizeof(double) * nbins * nxis);
-    double *counts = malloc(sizeof(double) * nbins);
+//    double *counts = malloc(sizeof(double) * nbins);
 #pragma omp parallel for
     for (long i = 0; i < nbins * nxis; ++i) {
         xis[i] = 0;
@@ -142,7 +142,7 @@ double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps
     free(x);
     free(y);
     free(z);
-    free(counts);
+//    free(counts);
     free(ang_sep);
     free(bin_nums);
     free(map1);
