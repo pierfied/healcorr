@@ -42,7 +42,7 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
     theta_ptr = theta.ctypes.data_as(dptr)
     phi_ptr = phi.ctypes.data_as(dptr)
     bins_ptr = bins.ctypes.data_as(dptr)
-    counts_ptr = bin_counts.ctpyes.data_as(dptr)
+    counts_ptr = bin_counts.ctypes.data_as(dptr)
 
     if verbose:
         verbose_flag = 1
