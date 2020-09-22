@@ -191,7 +191,7 @@ extern "C" {
         xis = (float *) malloc(sizeof(float) * nxis * nbins);
         cudaMemcpy(xis, cu_xis, sizeof(float) * nxis * nbins, cudaMemcpyDefault);
 
-        std::cout << "Done: " << cudaPeekAtLastError() << std::endl;
+        std::cout << "Done: " << cudaGetLastError() << std::endl;
 
         cudaFree(map_means);
         cudaFree(x);
