@@ -85,7 +85,7 @@ extern "C" {
     }
 
     double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins,
-                     long verbose, long cross_correlate){
+                     long verbose, long cross_correlate, double *counts){
         double *cu_maps, *cu_theta, *cu_phi, *cu_bins;
         cudaMallocManaged(&cu_maps, sizeof(double) * nmaps * npix);
         cudaMallocManaged(&cu_theta, sizeof(double) * npix);
@@ -140,30 +140,31 @@ extern "C" {
             }
         }
 
-        double *cu_xis, *counts;
+        double *cu_xis, *cu_counts;
         cudaMallocManaged(&cu_xis, sizeof(double) * nbins * nxis);
-        cudaMallocManaged(&counts, sizeof(double) * nbins * nxis);
+        cudaMallocManaged(&cu_counts, sizeof(double) * nbins);
 #pragma omp parallel for
         for (long i = 0; i < nbins * nxis; ++i) {
             cu_xis[i] = 0;
         }
 #pragma omp parallel for
         for (long i = 0; i < nbins; ++i) {
-            counts[i] = 0;
+            cu_counts[i] = 0;
         }
 
         cudaOccupancyMaxPotentialBlockSize( &numBlocks, &blockSize, calc_xis, 0, 0);
         calc_xis<<<numBlocks, blockSize>>>(npix, nxis, nbins, x, y, z, cu_bins, cu_maps,
-                                           map1, map2, cu_xis, counts);
+                                           map1, map2, cu_xis, cu_counts);
 
         cudaOccupancyMaxPotentialBlockSize( &numBlocks, &blockSize, avg_xis, 0, 0);
-        avg_xis<<<numBlocks, blockSize>>>(nxis, nbins, cu_xis, counts, map_means, map1, map2);
+        avg_xis<<<numBlocks, blockSize>>>(nxis, nbins, cu_xis, cu_counts, map_means, map1, map2);
 
         cudaDeviceSynchronize();
 
         double *xis;
         xis = (double *) malloc(sizeof(double) * nxis * nbins);
         cudaMemcpy(xis, cu_xis, sizeof(double) * nxis * nbins, cudaMemcpyDefault);
+        cudaMemcpy(counts, cu_counts, sizeof(double) * nbins, cudaMemcpyDefault);
 
         if (verbose) {
             std::cout << "Done: " << cudaGetLastError() << std::endl;
@@ -173,7 +174,7 @@ extern "C" {
         cudaFree(x);
         cudaFree(y);
         cudaFree(z);
-        cudaFree(counts);
+        cudaFree(cu_counts);
         cudaFree(map1);
         cudaFree(map2);
 

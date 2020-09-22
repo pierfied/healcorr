@@ -5,7 +5,7 @@ import healpy as hp
 import glob
 
 
-def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbose=False):
+def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbose=False, counts=False):
     npix = len(mask)
     nside = hp.npix2nside(npix)
 
@@ -29,18 +29,20 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
 
     healcorr_run = healcorr_lib.healcorr
     healcorr_run.argtypes = [ctypes.c_long, dptr, dptr, ctypes.c_long, dptr, ctypes.c_long, dptr, ctypes.c_long,
-                             ctypes.c_long]
+                             ctypes.c_long, dptr]
     healcorr_run.restype = dptr
 
     masked_maps = np.ascontiguousarray(masked_maps.astype(np.float64))
     theta = np.ascontiguousarray(theta.astype(np.float64))
     phi = np.ascontiguousarray(phi.astype(np.float64))
     bins = np.ascontiguousarray(bins.astype(np.float64))
+    counts_arr = np.ascontiguousarray(np.zeros(nbins).astype(np.float64))
 
     masked_maps_ptr = masked_maps.ctypes.data_as(dptr)
     theta_ptr = theta.ctypes.data_as(dptr)
     phi_ptr = phi.ctypes.data_as(dptr)
     bins_ptr = bins.ctypes.data_as(dptr)
+    counts_ptr = counts_arr.ctypes.data_as(dptr)
 
     if verbose:
         verbose_flag = 1
@@ -55,7 +57,7 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
         nxis = nmaps
 
     xis_ptr = healcorr_run(mask_npix, theta_ptr, phi_ptr, nmaps, masked_maps_ptr, nbins, bins_ptr, verbose_flag,
-                           crosscorr_flag)
+                           crosscorr_flag, counts_ptr)
     xis = np.ctypeslib.as_array(xis_ptr, shape=(nxis, nbins))
 
     if cross_correlate:
@@ -67,5 +69,8 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
             xi_mat[:,:,i][xi_mask.T] =  xi_mat[:,:,i].T[xi_mask.T]
 
         xis = xi_mat
+
+    if counts:
+        return xis, counts_arr
 
     return xis
