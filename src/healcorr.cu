@@ -142,7 +142,7 @@ extern "C" {
 
         double *cu_xis, *counts;
         cudaMallocManaged(&cu_xis, sizeof(double) * nbins * nxis);
-        cudaMallocManaged(&counts, sizeof(double) * nbins * nxis);
+        cudaMallocManaged(&counts, sizeof(double) * nbins);
 #pragma omp parallel for
         for (long i = 0; i < nbins * nxis; ++i) {
             cu_xis[i] = 0;
