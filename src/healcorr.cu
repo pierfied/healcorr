@@ -7,25 +7,6 @@
 #include <iostream>
 
 extern "C" {
-
-    __global__
-    void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep){
-        long index = blockIdx.x * blockDim.x + threadIdx.x;
-        long stride = blockDim.x * gridDim.x;
-
-        double xi = x[ind];
-        double yi = y[ind];
-        double zi = z[ind];
-
-        if(index == 0){
-            ang_sep[ind] = 0;
-        }
-
-        for (long j = index; j < ind; j += stride){
-            ang_sep[j] = acos(xi * x[j] + yi * y[j] + zi * z[j]);
-        }
-    }
-
     __global__
     void calc_map_means(long nmaps, long npix, double *maps, double *map_means){
         long index = blockIdx.x * blockDim.x + threadIdx.x;
