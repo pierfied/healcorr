@@ -12,32 +12,32 @@
 extern "C" {
 
     __global__
-    void calc_ang_sep(int ind, float *x, float *y, float *z, float *ang_sep){
-        int index = blockIdx.x * blockDim.x + threadIdx.x;
-        int stride = blockDim.x * gridDim.x;
+    void calc_ang_sep(long ind, double *x, double *y, double *z, double *ang_sep){
+        long index = blockIdx.x * blockDim.x + threadIdx.x;
+        long stride = blockDim.x * gridDim.x;
 
-        float xi = x[ind];
-        float yi = y[ind];
-        float zi = z[ind];
+        double xi = x[ind];
+        double yi = y[ind];
+        double zi = z[ind];
 
         if(index == 0){
             ang_sep[ind] = 0;
         }
 
-        for (int j = index; j < ind; j += stride){
+        for (long j = index; j < ind; j += stride){
             ang_sep[j] = acosf(xi * x[j] + yi * y[j] + zi * z[j]);
         }
     }
 
     __global__
-    void calc_map_means(int nmaps, int npix, float *maps, float *map_means){
-        int index = blockIdx.x * blockDim.x + threadIdx.x;
-        int stride = blockDim.x * gridDim.x;
+    void calc_map_means(long nmaps, long npix, double *maps, double *map_means){
+        long index = blockIdx.x * blockDim.x + threadIdx.x;
+        long stride = blockDim.x * gridDim.x;
 
-        for (int i = index; i < nmaps; i += stride){
+        for (long i = index; i < nmaps; i += stride){
             map_means[i] = 0;
 
-            for (int j = i * npix; j < (i + 1) * npix; j++){
+            for (long j = i * npix; j < (i + 1) * npix; j++){
                 map_means[i] += maps[j];
             }
 
@@ -46,11 +46,11 @@ extern "C" {
     }
 
     __global__
-    void calc_vec(int npix, float *theta, float *phi, float *x, float *y, float *z){
-        int index = blockIdx.x * blockDim.x + threadIdx.x;
-        int stride = blockDim.x * gridDim.x;
+    void calc_vec(long npix, double *theta, double *phi, double *x, double *y, double *z){
+        long index = blockIdx.x * blockDim.x + threadIdx.x;
+        long stride = blockDim.x * gridDim.x;
 
-        for (int i = index; i < npix; i += stride){
+        for (long i = index; i < npix; i += stride){
             x[i] = cosf(phi[i]) * sinf(theta[i]);
             y[i] = sinf(phi[i]) * sinf(theta[i]);
             z[i] = cosf(theta[i]);
@@ -58,33 +58,33 @@ extern "C" {
     }
 
     __global__
-    void calc_xis(long npix, int nxis, int nbins, float *x, float *y, float *z, float *bins, float *maps,
-                  int *map1, int *map2, float *xis, float *counts){
-        int index = blockIdx.x * blockDim.x + threadIdx.x;
-        int stride = blockDim.x * gridDim.x;
+    void calc_xis(long npix, long nxis, long nbins, double *x, double *y, double *z, double *bins, double *maps,
+                  long *map1, long *map2, double *xis, double *counts){
+        long index = blockIdx.x * blockDim.x + threadIdx.x;
+        long stride = blockDim.x * gridDim.x;
 
         for (long ind = index; ind < npix * npix; ind += stride) {
-            int i = ind / npix;
-            int j = ind % npix;
+            long i = ind / npix;
+            long j = ind % npix;
 
             if (j > i) continue;
 
-            float ang_sep = acosf(x[i] * x[j] + y[i] * y[j] + z[i] * z[j]);
+            double ang_sep = acosf(x[i] * x[j] + y[i] * y[j] + z[i] * z[j]);
             ang_sep = fminf(fmaxf(ang_sep, -1), 1);
 
-            int bin_num;
+            long bin_num;
             if (ang_sep < bins[0] || ang_sep > bins[nbins]) continue;
-            for (int k = 0; k < nbins; k++) {
+            for (long k = 0; k < nbins; k++) {
                 if (ang_sep < bins[k + 1]) {
                     bin_num = k;
                     break;
                 }
             }
 
-            float *addr = &(counts[bin_num]);
+            double *addr = &(counts[bin_num]);
             atomicAdd(addr, 1);
 
-            for (int k = 0; k < nxis; k++) {
+            for (long k = 0; k < nxis; k++) {
                 addr = &(xis[k * nbins + bin_num]);
                 atomicAdd(addr, maps[map1[k] * npix + i] * maps[map2[k] * npix + j]);
             }
@@ -92,62 +92,62 @@ extern "C" {
     }
 
     __global__
-    void avg_xis(int nxis, int nbins, float *xis, float *counts, float *map_means,
-                 int *map1, int *map2){
-        int index = blockIdx.x * blockDim.x + threadIdx.x;
-        int stride = blockDim.x * gridDim.x;
+    void avg_xis(long nxis, long nbins, double *xis, double *counts, double *map_means,
+                 long *map1, long *map2){
+        long index = blockIdx.x * blockDim.x + threadIdx.x;
+        long stride = blockDim.x * gridDim.x;
 
-        for (int ind = index; ind < nxis * nbins; ind += stride){
-            int i = ind / nbins;
-            int j = ind % nbins;
+        for (long ind = index; ind < nxis * nbins; ind += stride){
+            long i = ind / nbins;
+            long j = ind % nbins;
 
             xis[ind] = xis[ind] / counts[j] - map_means[map1[i]] * map_means[map2[i]];
         }
     }
 
-    float *healcorr(int npix, float *theta, float *phi, int nmaps, float *maps, int nbins, float *bins,
-                     int verbose, int cross_correlate){
-        float *cu_maps, *cu_theta, *cu_phi, *cu_bins;
-        cudaMallocManaged(&cu_maps, sizeof(float) * nmaps * npix);
-        cudaMallocManaged(&cu_theta, sizeof(float) * npix);
-        cudaMallocManaged(&cu_phi, sizeof(float) * npix);
-        cudaMallocManaged(&cu_bins, sizeof(float) * (nbins + 1));
-        cudaMemcpy(cu_maps, maps, sizeof(float) * nmaps * npix, cudaMemcpyDefault);
-        cudaMemcpy(cu_theta, theta, sizeof(float) * npix, cudaMemcpyDefault);
-        cudaMemcpy(cu_phi, phi, sizeof(float) * npix, cudaMemcpyDefault);
-        cudaMemcpy(cu_bins, bins, sizeof(float) * (nbins + 1), cudaMemcpyDefault);
+    double *healcorr(long npix, double *theta, double *phi, long nmaps, double *maps, long nbins, double *bins,
+                     long verbose, long cross_correlate){
+        double *cu_maps, *cu_theta, *cu_phi, *cu_bins;
+        cudaMallocManaged(&cu_maps, sizeof(double) * nmaps * npix);
+        cudaMallocManaged(&cu_theta, sizeof(double) * npix);
+        cudaMallocManaged(&cu_phi, sizeof(double) * npix);
+        cudaMallocManaged(&cu_bins, sizeof(double) * (nbins + 1));
+        cudaMemcpy(cu_maps, maps, sizeof(double) * nmaps * npix, cudaMemcpyDefault);
+        cudaMemcpy(cu_theta, theta, sizeof(double) * npix, cudaMemcpyDefault);
+        cudaMemcpy(cu_phi, phi, sizeof(double) * npix, cudaMemcpyDefault);
+        cudaMemcpy(cu_bins, bins, sizeof(double) * (nbins + 1), cudaMemcpyDefault);
 
-        float *map_means;
-        cudaMallocManaged(&map_means, sizeof(float) * nmaps);
+        double *map_means;
+        cudaMallocManaged(&map_means, sizeof(double) * nmaps);
 
         int blockSize, numBlocks;
 
         cudaOccupancyMaxPotentialBlockSize( &numBlocks, &blockSize, calc_map_means, 0, 0);
         calc_map_means<<<numBlocks, blockSize>>>(nmaps, npix, cu_maps, map_means);
 
-        float *x, *y, *z;
-        cudaMallocManaged(&x, sizeof(float) * npix);
-        cudaMallocManaged(&y, sizeof(float) * npix);
-        cudaMallocManaged(&z, sizeof(float) * npix);
+        double *x, *y, *z;
+        cudaMallocManaged(&x, sizeof(double) * npix);
+        cudaMallocManaged(&y, sizeof(double) * npix);
+        cudaMallocManaged(&z, sizeof(double) * npix);
 
         cudaOccupancyMaxPotentialBlockSize( &numBlocks, &blockSize, calc_vec, 0, 0);
         calc_vec<<<numBlocks, blockSize>>>(npix, cu_theta, cu_phi, x, y, z);
 
-        int nxis;
+        long nxis;
         if (cross_correlate) {
             nxis = (nmaps * (nmaps + 1)) / 2;
         } else {
             nxis = nmaps;
         }
 
-        int *map1, *map2;
-        cudaMallocManaged(&map1, sizeof(int) * nxis);
-        cudaMallocManaged(&map2, sizeof(int) * nxis);
+        long *map1, *map2;
+        cudaMallocManaged(&map1, sizeof(long) * nxis);
+        cudaMallocManaged(&map2, sizeof(long) * nxis);
 
-        int xi_num = 0;
+        long xi_num = 0;
         if (cross_correlate) {
-            for (int i = 0; i < nmaps; ++i) {
-                for (int j = 0; j <= i; ++j) {
+            for (long i = 0; i < nmaps; ++i) {
+                for (long j = 0; j <= i; ++j) {
                     map1[xi_num] = i;
                     map2[xi_num] = j;
 
@@ -155,15 +155,15 @@ extern "C" {
                 }
             }
         } else {
-            for (int i = 0; i < nmaps; ++i) {
+            for (long i = 0; i < nmaps; ++i) {
                 map1[i] = i;
                 map2[i] = i;
             }
         }
 
-        float *cu_xis, *counts;
-        cudaMallocManaged(&cu_xis, sizeof(float) * nbins * nxis);
-        cudaMallocManaged(&counts, sizeof(float) * nbins * nxis);
+        double *cu_xis, *counts;
+        cudaMallocManaged(&cu_xis, sizeof(double) * nbins * nxis);
+        cudaMallocManaged(&counts, sizeof(double) * nbins * nxis);
 #pragma omp parallel for
         for (long i = 0; i < nbins * nxis; ++i) {
             cu_xis[i] = 0;
@@ -173,10 +173,10 @@ extern "C" {
             counts[i] = 0;
         }
 
-        float *ang_sep;
-        int *bin_nums;
-        cudaMallocManaged(&ang_sep, sizeof(float) * npix);
-        cudaMallocManaged(&bin_nums, sizeof(int) * npix);
+        double *ang_sep;
+        long *bin_nums;
+        cudaMallocManaged(&ang_sep, sizeof(double) * npix);
+        cudaMallocManaged(&bin_nums, sizeof(long) * npix);
 
         cudaOccupancyMaxPotentialBlockSize( &numBlocks, &blockSize, calc_xis, 0, 0);
         calc_xis<<<numBlocks, blockSize>>>(npix, nxis, nbins, x, y, z, cu_bins, cu_maps,
@@ -187,9 +187,9 @@ extern "C" {
 
         cudaDeviceSynchronize();
 
-        float *xis;
-        xis = (float *) malloc(sizeof(float) * nxis * nbins);
-        cudaMemcpy(xis, cu_xis, sizeof(float) * nxis * nbins, cudaMemcpyDefault);
+        double *xis;
+        xis = (double *) malloc(sizeof(double) * nxis * nbins);
+        cudaMemcpy(xis, cu_xis, sizeof(double) * nxis * nbins, cudaMemcpyDefault);
 
         std::cout << "Done: " << cudaGetLastError() << std::endl;
 

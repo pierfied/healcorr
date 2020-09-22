@@ -25,22 +25,22 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
     lib_path = glob.glob(os.path.join(os.path.dirname(__file__), '../libhealcorr.so'))[0]
     healcorr_lib = ctypes.cdll.LoadLibrary(lib_path)
 
-    fptr = ctypes.POINTER(ctypes.c_float)
+    dptr = ctypes.POINTER(ctypes.c_double)
 
     healcorr_run = healcorr_lib.healcorr
-    healcorr_run.argtypes = [ctypes.c_int, fptr, fptr, ctypes.c_int, fptr, ctypes.c_int, fptr, ctypes.c_int,
-                             ctypes.c_int]
-    healcorr_run.restype = fptr
+    healcorr_run.argtypes = [ctypes.c_long, dptr, dptr, ctypes.c_long, dptr, ctypes.c_long, dptr, ctypes.c_long,
+                             ctypes.c_long]
+    healcorr_run.restype = dptr
 
-    masked_maps = np.ascontiguousarray(masked_maps.astype(np.float32))
-    theta = np.ascontiguousarray(theta.astype(np.float32))
-    phi = np.ascontiguousarray(phi.astype(np.float32))
-    bins = np.ascontiguousarray(bins.astype(np.float32))
+    masked_maps = np.ascontiguousarray(masked_maps.astype(np.float64))
+    theta = np.ascontiguousarray(theta.astype(np.float64))
+    phi = np.ascontiguousarray(phi.astype(np.float64))
+    bins = np.ascontiguousarray(bins.astype(np.float64))
 
-    masked_maps_ptr = masked_maps.ctypes.data_as(fptr)
-    theta_ptr = theta.ctypes.data_as(fptr)
-    phi_ptr = phi.ctypes.data_as(fptr)
-    bins_ptr = bins.ctypes.data_as(fptr)
+    masked_maps_ptr = masked_maps.ctypes.data_as(dptr)
+    theta_ptr = theta.ctypes.data_as(dptr)
+    phi_ptr = phi.ctypes.data_as(dptr)
+    bins_ptr = bins.ctypes.data_as(dptr)
 
     if verbose:
         verbose_flag = 1
