@@ -6,7 +6,6 @@ import glob
 
 
 def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbose=False):
-    print('starting')
     npix = len(mask)
     nside = hp.npix2nside(npix)
 
@@ -55,13 +54,9 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
         crosscorr_flag = 0
         nxis = nmaps
 
-    print('about to run')
-
     xis_ptr = healcorr_run(mask_npix, theta_ptr, phi_ptr, nmaps, masked_maps_ptr, nbins, bins_ptr, verbose_flag,
                            crosscorr_flag)
     xis = np.ctypeslib.as_array(xis_ptr, shape=(nxis, nbins))
-
-    print('done running')
 
     if cross_correlate:
         xi_mat = np.zeros([nmaps, nmaps, nbins])
