@@ -3,10 +3,7 @@
 //
 
 #include "healcorr.h"
-#include <math.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
 #include <iostream>
 
 extern "C" {
@@ -25,7 +22,7 @@ extern "C" {
         }
 
         for (long j = index; j < ind; j += stride){
-            ang_sep[j] = acosf(xi * x[j] + yi * y[j] + zi * z[j]);
+            ang_sep[j] = acos(xi * x[j] + yi * y[j] + zi * z[j]);
         }
     }
 
@@ -51,9 +48,9 @@ extern "C" {
         long stride = blockDim.x * gridDim.x;
 
         for (long i = index; i < npix; i += stride){
-            x[i] = cosf(phi[i]) * sinf(theta[i]);
-            y[i] = sinf(phi[i]) * sinf(theta[i]);
-            z[i] = cosf(theta[i]);
+            x[i] = cos(phi[i]) * sin(theta[i]);
+            y[i] = sin(phi[i]) * sin(theta[i]);
+            z[i] = cos(theta[i]);
         }
     }
 
@@ -69,8 +66,8 @@ extern "C" {
 
             if (j > i) continue;
 
-            double ang_sep = acosf(x[i] * x[j] + y[i] * y[j] + z[i] * z[j]);
-            ang_sep = fminf(fmaxf(ang_sep, -1), 1);
+            double ang_sep = acos(x[i] * x[j] + y[i] * y[j] + z[i] * z[j]);
+            ang_sep = fmin(fmax(ang_sep, -1.), 1.);
 
             long bin_num;
             if (ang_sep < bins[0] || ang_sep > bins[nbins]) continue;
@@ -173,11 +170,6 @@ extern "C" {
             counts[i] = 0;
         }
 
-        double *ang_sep;
-        long *bin_nums;
-        cudaMallocManaged(&ang_sep, sizeof(double) * npix);
-        cudaMallocManaged(&bin_nums, sizeof(long) * npix);
-
         cudaOccupancyMaxPotentialBlockSize( &numBlocks, &blockSize, calc_xis, 0, 0);
         calc_xis<<<numBlocks, blockSize>>>(npix, nxis, nbins, x, y, z, cu_bins, cu_maps,
                                            map1, map2, cu_xis, counts);
@@ -191,15 +183,15 @@ extern "C" {
         xis = (double *) malloc(sizeof(double) * nxis * nbins);
         cudaMemcpy(xis, cu_xis, sizeof(double) * nxis * nbins, cudaMemcpyDefault);
 
-        std::cout << "Done: " << cudaGetLastError() << std::endl;
+        if (verbose) {
+            std::cout << "Done: " << cudaGetLastError() << std::endl;
+        }
 
         cudaFree(map_means);
         cudaFree(x);
         cudaFree(y);
         cudaFree(z);
         cudaFree(counts);
-        cudaFree(ang_sep);
-        cudaFree(bin_nums);
         cudaFree(map1);
         cudaFree(map2);
 
