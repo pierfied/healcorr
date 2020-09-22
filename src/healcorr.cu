@@ -47,8 +47,9 @@ extern "C" {
 
             if (j > i) continue;
 
-            double ang_sep = acos(x[i] * x[j] + y[i] * y[j] + z[i] * z[j]);
-            ang_sep = fmin(fmax(ang_sep, -1.), 1.);
+            double dot_prod = x[i] * x[j] + y[i] * y[j] + z[i] * z[j];
+            dot_prod = fmin(fmax(dot_prod, -1.), 1.);
+            double ang_sep = acos(dot_prod);
 
             long bin_num;
             if (ang_sep < bins[0] || ang_sep > bins[nbins]) continue;
