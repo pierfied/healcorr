@@ -15,7 +15,8 @@ def compute_corr(maps, mask, bins, premasked=False, cross_correlate=False, verbo
     theta, phi = hp.pix2ang(nside, pix_inds)
 
     if not premasked:
-        masked_maps = maps[:, mask]
+        broadcast_mask = np.broadcast_to(mask, maps.shape)
+        masked_maps = maps[broadcast_mask].reshape([broadcast_mask.shape[0], mask.sum()])
     else:
         masked_maps = maps
 
