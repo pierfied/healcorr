@@ -177,6 +177,7 @@ extern "C" {
         cudaFree(cu_counts);
         cudaFree(map1);
         cudaFree(map2);
+        cudaFree(cu_xis);
 
         cudaFree(cu_maps);
         cudaFree(cu_theta);
